@@ -1,0 +1,5 @@
+strawberry-graphql[asgi]
+uvicorn
+sqlalchemy
+fastapi
+python-multipart
