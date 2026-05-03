@@ -2,12 +2,22 @@ from strawberry.asgi import GraphQL
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from schema import schema
 from database import create_db_and_tables
 import uvicorn
 import os
 
 app = FastAPI()
+
+# Configuration des CORS pour autoriser l'extension
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Autorise toutes les origines (nécessaire pour une extension)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Create the GraphQL ASGI app
 graphql_app = GraphQL(schema)
