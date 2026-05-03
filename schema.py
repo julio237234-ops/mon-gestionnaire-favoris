@@ -1,6 +1,7 @@
 import strawberry
 from strawberry.types import Info
 from typing import List, Optional
+import re
 from models import Bookmark as BookmarkModel
 from database import SessionLocal
 from sqlalchemy.orm import Session
@@ -26,13 +27,22 @@ def from_orm(bookmark: BookmarkModel) -> Bookmark:
 @strawberry.type
 class Query:
     @strawberry.field
-    def bookmarks(self, info: Info, category: Optional[str] = None) -> List[Bookmark]:
+    def bookmarks(self, info: Info, 
+                  category: Optional[str] = None, 
+                  search: Optional[str] = None,
+                  skip: int = 0,
+                  limit: int = 100) -> List[Bookmark]:
         db: Session = SessionLocal()
         try:
             query = db.query(BookmarkModel)
             if category:
                 query = query.filter(BookmarkModel.category == category)
-            bookmarks = query.all()
+            if search:
+                query = query.filter(
+                    (BookmarkModel.name.ilike(f"%{search}%")) | 
+                    (BookmarkModel.url.ilike(f"%{search}%"))
+                )
+            bookmarks = query.offset(skip).limit(limit).all()
             return [from_orm(b) for b in bookmarks]
         finally:
             db.close()
@@ -51,6 +61,11 @@ class Query:
 class Mutation:
     @strawberry.mutation
     def create_bookmark(self, info: Info, name: str, url: str, category: str = "Général") -> Bookmark:
+        # Validation URL basique côté backend
+        url_pattern = re.compile(r'^https?://')
+        if not url_pattern.match(url):
+            raise Exception("URL invalide. Elle doit commencer par http:// ou https://")
+
         db: Session = SessionLocal()
         try:
             db_bookmark = BookmarkModel(name=name, url=url, category=category)

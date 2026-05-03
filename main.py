@@ -1,7 +1,6 @@
 from strawberry.asgi import GraphQL
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Header, HTTPException
 from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from schema import schema
 from database import create_db_and_tables
@@ -10,10 +9,18 @@ import os
 
 app = FastAPI()
 
+# Clé API simple pour la sécurité (à changer par une variable d'environnement en prod)
+API_KEY = os.environ.get("API_KEY", "votre_cle_api_secrete")
+
+async def get_api_key(x_api_key: str = Header(None)):
+    if x_api_key != API_KEY:
+        raise HTTPException(status_code=403, detail="Clé API invalide ou manquante")
+    return x_api_key
+
 # Configuration des CORS pour autoriser l'extension
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Autorise toutes les origines (nécessaire pour une extension)
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -22,8 +29,18 @@ app.add_middleware(
 # Create the GraphQL ASGI app
 graphql_app = GraphQL(schema)
 
-# Mount GraphQL at /graphql
-app.add_route("/graphql", graphql_app)
+@app.post("/graphql")
+async def graphql_handler(request: Request, x_api_key: str = Header(None)):
+    # On vérifie la clé API avant de passer au handler GraphQL
+    await get_api_key(x_api_key)
+    return await graphql_app.handle_http(request)
+
+@app.get("/graphql")
+async def graphql_get_handler(request: Request):
+    # On laisse le GET ouvert pour le playground si besoin, 
+    # mais les mutations/queries réelles passeront par POST
+    return await graphql_app.handle_http(request)
+
 app.add_api_websocket_route("/graphql", graphql_app)
 
 @app.get("/", response_class=HTMLResponse)
