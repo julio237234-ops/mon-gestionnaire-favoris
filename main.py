@@ -10,7 +10,7 @@ import os
 app = FastAPI()
 
 # Clé API simple pour la sécurité (à changer par une variable d'environnement en prod)
-API_KEY = os.environ.get("API_KEY", "votre_cle_api_secrete")
+API_KEY = os.environ.get("API_KEY", "MaSuperCleSecurisée2024!")
 
 async def get_api_key(x_api_key: str = Header(None)):
     if x_api_key != API_KEY:
